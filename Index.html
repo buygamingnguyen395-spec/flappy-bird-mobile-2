@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<style>
+body { margin: 0; background: #111; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+canvas { border: 2px solid #fff; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+</style>
+</head>
+<body>
+<canvas id="c" width="320" height="480"></canvas>
+<script>
+var cvs = document.getElementById("c");
+var ctx = cvs.getContext("2d");
+
+var bgImg = new Image(); bgImg.src = "https://raw.githubusercontent.com/sourabhv/FlapPyBird/master/assets/sprites/background-day.png";
+var pipeImg = new Image(); pipeImg.src = "https://raw.githubusercontent.com/sourabhv/FlapPyBird/master/assets/sprites/pipe-green.png";
+var birdImg = new Image(); birdImg.src = "https://raw.githubusercontent.com/sourabhv/FlapPyBird/master/assets/sprites/yellowbird-midflap.png";
+
+var flySfx = new Audio("https://raw.githubusercontent.com/sourabhv/FlapPyBird/master/assets/audio/wing.wav");
+var scoreSfx = new Audio("https://raw.githubusercontent.com/sourabhv/FlapPyBird/master/assets/audio/point.wav");
+var hitSfx = new Audio("https://raw.githubusercontent.com/sourabhv/FlapPyBird/master/assets/audio/hit.wav");
+
+var bird = { x: 50, y: 200, vy: 0, gravity: 0.35, jump: -6.5, rot: 0 };
+var pipes = [];
+var score = 0;
+var gameOver = false;
+var timer = 0;
+
+function jump() {
+if (gameOver) {
+bird.y = 200; bird.vy = 0; bird.rot = 0; pipes = []; score = 0; gameOver = false; return;
+}
+bird.vy = bird.jump;
+flySfx.currentTime = 0;
+flySfx.play().catch(function(){});
+}
+
+window.addEventListener("touchstart", function(e) { e.preventDefault(); jump(); }, {passive: false});
+window.addEventListener("mousedown", jump);
+
+function loop() {
+ctx.drawImage(bgImg, 0, 0, cvs.width, cvs.height);
+
+if (!gameOver) {
+bird.vy += bird.gravity;
+bird.y += bird.vy;
+bird.rot = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, bird.vy * 0.1));
+
+if (bird.y > cvs.height - 30 || bird.y < 0) {
+hitSfx.play().catch(function(){});
+gameOver = true;
+}
+
+timer++;
+if (timer % 90 === 0) {
+var gapY = Math.floor(Math.random() * (280 - 120)) + 120;
+pipes.push({ x: cvs.width, top: gapY - 60, bot: gapY + 60, passed: false });
+}
+
+for (var i = pipes.length - 1; i >= 0; i--) {
+var p = pipes[i];
+p.x -= 2;
+
+ctx.save();
+ctx.translate(p.x + 26, p.top);
+ctx.scale(1, -1);
+ctx.drawImage(pipeImg, -26, 0, 52, 320);
+ctx.restore();
+
+ctx.drawImage(pipeImg, p.x, p.bot, 52, 320);
+
+if (!p.passed && p.x < bird.x) {
+p.passed = true;
+score++;
+scoreSfx.currentTime = 0;
+scoreSfx.play().catch(function(){});
+}
+
+if (bird.x + 15 > p.x && bird.x - 15 < p.x + 52) {
+if (bird.y - 12 < p.top || bird.y + 12 > p.bot) {
+hitSfx.play().catch(function(){});
+gameOver = true;
+}
+}
+
+if (p.x < -60) pipes.splice(i, 1);
+}
+}
+
+ctx.save();
+ctx.translate(bird.x, bird.y);
+ctx.rotate(bird.rot);
+ctx.drawImage(birdImg, -17, -12, 34, 24);
+ctx.restore();
+
+ctx.fillStyle = "#fff";
+ctx.strokeStyle = "#000";
+ctx.lineWidth = 3;
+ctx.font = "bold 28px Arial";
+
+if (gameOver) {
+ctx.strokeText("GAME OVER", 70, 220);
+ctx.fillText("GAME OVER", 70, 220);
+ctx.font = "bold 20px Arial";
+ctx.strokeText("Điểm: " + score, 120, 260);
+ctx.fillText("Điểm: " + score, 120, 260);
+} else {
+ctx.strokeText(score, cvs.width / 2 - 10, 50);
+ctx.fillText(score, cvs.width / 2 - 10, 50);
+}
+
+requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
